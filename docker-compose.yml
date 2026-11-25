@@ -1,0 +1,70 @@
+# Local / staging stack. NEVER put real secrets in this file.
+# Copy .env.example → .env and fill locally (gitignored), or export vars in the shell.
+#
+# API only:     docker compose up --build api
+# API + ES:     docker compose --profile full up --build
+
+services:
+  api:
+    build: .
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      API_KEY: ${API_KEY:-dummy-compose-api-key}
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DISABLE_API_DOCS: ${DISABLE_API_DOCS:-false}
+      HTTP_TIMEOUT_SECONDS: ${HTTP_TIMEOUT_SECONDS:-30}
+      ELASTICSEARCH_HOST: ${ELASTICSEARCH_HOST:-elasticsearch}
+      ELASTICSEARCH_PORT: ${ELASTICSEARCH_PORT:-9200}
+      ELASTICSEARCH_USER: ${ELASTICSEARCH_USER:-elastic}
+      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD:-changeme-es-password}
+      ELASTICSEARCH_INDEX_NAME: ${ELASTICSEARCH_INDEX_NAME:-articles}
+      ELASTICSEARCH_FAILURE_INDEX: ${ELASTICSEARCH_FAILURE_INDEX:-article_failures}
+      ELASTICSEARCH_USE_SSL: ${ELASTICSEARCH_USE_SSL:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # ServiceNow / Azure — supply via .env; placeholders are not real credentials
+      SERVICENOW_URL: ${SERVICENOW_URL:-https://your-instance.service-now.com}
+      SERVICENOW_USER: ${SERVICENOW_USER:-your-servicenow-user}
+      SERVICENOW_PASS: ${SERVICENOW_PASS:-your-servicenow-password}
+      LLM_PROVIDER: ${LLM_PROVIDER:-huggingface}
+      LLM_MODEL: ${LLM_MODEL:-google/flan-t5-base}
+      LLM_MAX_NEW_TOKENS: ${LLM_MAX_NEW_TOKENS:-512}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-your-azure-openai-api-key}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-https://your-resource.openai.azure.com}
+      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT:-your-deployment-name}
+      AZURE_OPENAI_API_VERSION: ${AZURE_OPENAI_API_VERSION:-2024-02-15-preview}
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  elasticsearch:
+    profiles: ["full"]
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200 >/dev/null || exit 1"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  esdata:

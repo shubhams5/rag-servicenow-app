@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-servicenow-app"
+version = "0.1.0"
+description = "RAG backend for ServiceNow tickets using Elasticsearch ELSER and a local Hugging Face LLM."
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.12"
+authors = [{ name = "RAG ServiceNow Maintainers" }]
+# Prefer pip install -r requirements.txt for the pinned runtime set.
+# Declared here for tooling discoverability; keep versions aligned with requirements.txt.
+dependencies = [
+  "fastapi==0.122.0",
+  "uvicorn==0.38.0",
+  "elasticsearch==9.2.0",
+  "python-dotenv==1.2.1",
+  "PyYAML==6.0.3",
+  "requests==2.32.5",
+  "pydantic==2.12.5",
+  "httpx==0.28.1",
+  "APScheduler==3.11.1",
+  "transformers==4.57.3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==9.2.0",
+  "pytest-asyncio==1.5.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+addopts = "-q"

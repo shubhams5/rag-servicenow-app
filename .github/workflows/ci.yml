@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      # Dummy values only — never store real secrets in CI env here.
+      API_KEY: dummy-ci-api-key
+      RAG_CONFIG_PATH: /tmp/rag-ci-missing-config.yaml
+      RAG_ENV_FILE: ""
+      ELASTICSEARCH_HOST: localhost
+      ELASTICSEARCH_PORT: "9200"
+      ELASTICSEARCH_INDEX_NAME: articles_test
+      ELASTICSEARCH_PASSWORD: dummy-ci-es-password
+      SERVICENOW_URL: https://dummy-instance.service-now.com
+      SERVICENOW_USER: dummy-user
+      SERVICENOW_PASS: dummy-servicenow-password
+      AZURE_OPENAI_API_KEY: dummy-azure-openai-api-key
+      ENVIRONMENT: development
+      DISABLE_API_DOCS: "false"
+      HTTP_TIMEOUT_SECONDS: "5"
+      PYTHONPATH: .
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # CPU torch wheel keeps CI smaller/faster than default CUDA builds when available
+          pip install -r requirements-dev.txt
+
+      - name: Run unit tests (dummy credentials only)
+        run: pytest tests/phase_a tests/phase_b tests/phase_c tests/phase_d tests/phase_e -q
+
+      - name: Dockerfile has no baked secrets
+        run: |
+          # Build banned patterns without embedding provider key prefixes as literals in this file.
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          parts = ["sk" + chr(45), "AIza", "ghp" + "_", "BEGIN PRIVATE", "BEGIN RSA PRIVATE", "BEGIN OPENSSH PRIVATE"]
+          banned = re.compile("|".join(re.escape(p) if " " in p else p for p in parts), re.I)
+          for rel in ("Dockerfile", "docker-compose.yml"):
+              text = Path(rel).read_text(encoding="utf-8")
+              assert not banned.search(text), f"banned secret-shaped token in {rel}"
+          print("secret-shape scan ok")
+          PY
